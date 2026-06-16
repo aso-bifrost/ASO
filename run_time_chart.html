@@ -198,7 +198,7 @@ function updateStats(i) {
     <div class="stat"><div class="stat-label">Mean cycle time</div><div class="stat-value">${total.toFixed(1)} min</div></div>
     <div class="stat"><div class="stat-label">Fluidics total</div><div class="stat-value">${fl} min</div></div>
     <div class="stat"><div class="stat-label">Imaging total</div><div class="stat-value">${img} min</div></div>
-    <div class="stat"><div class="stat-label">Total run time</div><div class="stat-value">${d.run_totals[i].toFixed(1)} hr</div></div>
+    <div class="stat"><div class="stat-label">Total run time (${v.cycles} cycles)</div><div class="stat-value">${d.run_totals[i].toFixed(1)} hr</div></div>
     <div class="stat"><div class="stat-label">Objective / Wells / FOVs per well</div><div class="stat-value" style="font-size:22px">${v.objective} / ${v.wells}W / ${v.fovs_per_well} </div></div>
   `;
 }
