@@ -144,7 +144,7 @@ IMAGING_reducedcomm_10X = ImagingParams(
     set_wheels_ms=15.2,
     set_led_ms=0.6,
     end_stack_ms=49.0,
-    z_map_duration_per_well_s=322.5, #354.8 from JSON file /11 * 10, for 10 slices
+    z_map_duration_per_well_s=322.5+165, #354.8 from JSON file /11 * 10, for 10 slices, now +165 for overshoot
     z_map_points_per_well=33,
     z_map_slices_per_point=10,
     z_map_exposure_ms=25.0,
@@ -220,7 +220,7 @@ VERSIONS: list[VersionConfig] = [
     ),
     VersionConfig(
             date="2026-06-22",
-            label="Reduced communication time",
+            label="Reduced communication time & Z backlash",
             notes="Reduced comm time between PC and Heimdall.",
             cycles=12,
             pumps=PUMPS_KNF,
@@ -255,7 +255,7 @@ VERSIONS: list[VersionConfig] = [
 
     VersionConfig(
         date="2026-06-22",
-        label="Reduced communication time",
+        label="Reduced communication time & Z backlash",
         notes="Reduced comm time between PC and Heimdall.",
         cycles=12,
         pumps=PUMPS_KNF,
@@ -639,12 +639,12 @@ function buildMainChart() {{
 function updateStats(i) {{
   const d = D();
   const v = d.versions[i];
-  const total = d.totals[i];
+  const total = d.totals[i] / 60;
   const fl = (d.fp[i] + d.fw[i]).toFixed(1);
   const img = (d.zm[i] + d.aq[i]).toFixed(1);
   document.getElementById('stats-grid').innerHTML = `
     <div class="stat"><div class="stat-label">Version</div><div class="stat-value" style="font-size:15px">${{v.label}}</div></div>
-    <div class="stat"><div class="stat-label">Mean cycle time</div><div class="stat-value">${{total.toFixed(1)}} min</div></div>
+    <div class="stat"><div class="stat-label">Mean cycle time</div><div class="stat-value">${{total.toFixed(2)}} hr</div></div>
     <div class="stat"><div class="stat-label">Fluidics total</div><div class="stat-value">${{fl}} min</div></div>
     <div class="stat"><div class="stat-label">Imaging total</div><div class="stat-value">${{img}} min</div></div>
     <div class="stat"><div class="stat-label">Total run time (${{v.cycles}} cycles)</div><div class="stat-value">${{d.run_totals[i].toFixed(1)}} hr</div></div>
