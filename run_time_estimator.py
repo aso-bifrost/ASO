@@ -133,6 +133,24 @@ IMAGING_10X = ImagingParams(
     z_map_move_ms=2554.0,
 )
 
+IMAGING_reducedcomm_10X = ImagingParams(
+    objective="10x",
+    fovs_per_well=475,
+    channels=["405", "561", "638"],
+    exposure_ms=[25.0, 300.0, 300.0],
+    simultaneous_pairs=[["561", "638"]],
+    fov_move_ms=380.0,
+    camera_overhead_ms=484.0,
+    set_wheels_ms=15.2,
+    set_led_ms=0.6,
+    end_stack_ms=49.0,
+    z_map_duration_per_well_s=322.5, #354.8 from JSON file /11 * 10, for 10 slices
+    z_map_points_per_well=33,
+    z_map_slices_per_point=10,
+    z_map_exposure_ms=25.0,
+    z_map_move_ms=2554.0,
+)
+
 IMAGING_4X = ImagingParams(
     objective="4x",
     fovs_per_well=75,
@@ -144,6 +162,24 @@ IMAGING_4X = ImagingParams(
     set_wheels_ms=51.0,
     set_led_ms=26.0,
     end_stack_ms=23.0,
+    z_map_duration_per_well_s=56.0, # estimate: 75 * 0.07 ≈ 5 points, scale from 10x
+    z_map_points_per_well=5,        # 7% of 75 FOVs ≈ 5 points
+    z_map_slices_per_point=10,
+    z_map_exposure_ms=25.0,
+    z_map_move_ms=2554.0,           # placeholder — update when measured
+)
+
+IMAGING_reducedcomm_4X = ImagingParams(
+    objective="4x",
+    fovs_per_well=75,
+    channels=["405", "561", "638"],
+    exposure_ms=[25.0, 300.0, 300.0],
+    simultaneous_pairs=[["561", "638"]],
+    fov_move_ms=380.0,              # likely similar stage speed
+    camera_overhead_ms=484.0,       # same camera hardware
+    set_wheels_ms=15.2,
+    set_led_ms=0.6,
+    end_stack_ms=49.0,
     z_map_duration_per_well_s=56.0, # estimate: 75 * 0.07 ≈ 5 points, scale from 10x
     z_map_points_per_well=5,        # 7% of 75 FOVs ≈ 5 points
     z_map_slices_per_point=10,
@@ -182,7 +218,17 @@ VERSIONS: list[VersionConfig] = [
         imaging=IMAGING_10X,
         instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
     ),
- 
+    VersionConfig(
+            date="2026-06-22",
+            label="Reduced communication time",
+            notes="Reduced comm time between PC and Heimdall.",
+            cycles=12,
+            pumps=PUMPS_KNF,
+            fluidics=FLUIDICS,
+            imaging=IMAGING_reducedcomm_10X,
+            instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
+        ),
+
     # ── 4x ───────────────────────────────────────────────────────────────────
  
     VersionConfig(
@@ -204,6 +250,17 @@ VERSIONS: list[VersionConfig] = [
         pumps=PUMPS_KNF,
         fluidics=FLUIDICS,
         imaging=IMAGING_4X,
+        instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
+    ),
+
+    VersionConfig(
+        date="2026-06-22",
+        label="Reduced communication time",
+        notes="Reduced comm time between PC and Heimdall.",
+        cycles=12,
+        pumps=PUMPS_KNF,
+        fluidics=FLUIDICS,
+        imaging=IMAGING_reducedcomm_4X,
         instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
     ),
  
