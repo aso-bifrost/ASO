@@ -1,0 +1,326 @@
+"""
+Run Time Tracker
+=================
+Scans a folder of completed run folders (each containing plan.csv) and computes
+ACTUAL measured time spent in 4 categories per run:
+  - fluidics_pump   : aspirate + dispense time
+  - fluidics_wait   : incubation wait time
+  - imaging         : regular FOV acquisition (move + acquire + overhead)
+  - z_mapping       : z-stack acquisition (z_stack_begin/end + z_stack_move_z_N + nested acquire)
+
+This is the REAL counterpart to run_time_estimator.py (which projects theoretical time).
+Use this to validate estimator parameters against what actually happened, and to track
+real run durations over time.
+
+Usage:
+    python run_time_tracker.py /path/to/runs_folder
+    -> scans for plan.csv in each subfolder (or the folder itself)
+    -> outputs run_time_tracker.csv and run_time_tracker.html in the current directory
+"""
+
+from __future__ import annotations
+import sys
+import json
+from pathlib import Path
+from datetime import datetime
+import pandas as pd
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# STEP CLASSIFICATION
+# ─────────────────────────────────────────────────────────────────────────────
+
+FLUIDICS_PUMP_TYPES = {"aspirate", "dispense", "needle_insert", "needle_retract", "move_to_well"}
+FLUIDICS_WAIT_TYPES = {"wait", "incubation_wait"}
+Z_MAP_TYPES = {"z_stack_begin", "z_stack_end"}
+# z_stack_move_z_N steps have step_type == "move" but name starts with "z_stack_move_z_"
+# Everything else (move, set_wheels, set_led, acquire, begin_stack, end_stack) is imaging,
+# UNLESS it falls between a z_stack_begin and z_stack_end, in which case it's z-mapping.
+
+
+def classify_run(csv_path: Path) -> dict:
+    """Returns a dict with total seconds spent in each of the 4 categories,
+    plus metadata (run start/end, wells, cycles, fovs)."""
+
+    df = pd.read_csv(csv_path)
+    df = df[df["status"] == "completed"].copy()
+    df["start_time"] = pd.to_datetime(df["start_time"])
+    df["end_time"] = pd.to_datetime(df["end_time"])
+    df["duration_s"] = (df["end_time"] - df["start_time"]).dt.total_seconds()
+
+    # Track whether we're inside a z-stack region
+    in_z_stack = False
+    z_mapping_s = 0.0
+    fluidics_pump_s = 0.0
+    fluidics_wait_s = 0.0
+    imaging_s = 0.0
+
+    for _, row in df.iterrows():
+        st = row["step_type"]
+        dur = row["duration_s"]
+
+        if st == "z_stack_begin":
+            in_z_stack = True
+            z_mapping_s += dur
+            continue
+        if st == "z_stack_end":
+            in_z_stack = False
+            z_mapping_s += dur
+            continue
+
+        if in_z_stack:
+            z_mapping_s += dur
+            continue
+
+        if st in FLUIDICS_PUMP_TYPES:
+            fluidics_pump_s += dur
+        elif st in FLUIDICS_WAIT_TYPES:
+            fluidics_wait_s += dur
+        else:
+            # move, set_wheels, set_led, acquire, begin_stack, end_stack (outside z-stack)
+            imaging_s += dur
+
+    run_start = df["start_time"].min()
+    run_end = df["end_time"].max()
+    total_s = (run_end - run_start).total_seconds()
+
+    wells = sorted(df["well"].dropna().unique().tolist())
+    cycles = sorted(df["cycle"].dropna().unique().tolist())
+    fovs = df["fov"].nunique()
+
+    full_df = pd.read_csv(csv_path)
+    n_aborted = (full_df["status"] == "aborted").sum()
+    n_pending = (full_df["status"] == "pending").sum()
+    n_failed = (full_df["status"] == "failed").sum()
+    is_complete = (n_aborted == 0 and n_pending == 0 and n_failed == 0)
+
+    return {
+        "run_path": str(csv_path.parent),
+        "run_start": run_start,
+        "run_end": run_end,
+        "total_s": total_s,
+        "fluidics_pump_s": fluidics_pump_s,
+        "fluidics_wait_s": fluidics_wait_s,
+        "imaging_s": imaging_s,
+        "z_mapping_s": z_mapping_s,
+        "wells": ",".join(str(w) for w in wells),
+        "n_wells": len(wells),
+        "n_cycles": len(cycles),
+        "n_fovs": fovs,
+        "is_complete": is_complete,
+        "n_aborted": n_aborted,
+        "n_pending": n_pending,
+        "n_failed": n_failed,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FOLDER SCANNING
+# ─────────────────────────────────────────────────────────────────────────────
+
+def find_plan_csvs(root: Path) -> list[Path]:
+    """Finds all plan.csv files under root (root itself, or any subfolder)."""
+    if root.is_file() and root.name == "plan.csv":
+        return [root]
+    return sorted(root.rglob("plan.csv"))
+
+
+def scan_runs(root: Path) -> pd.DataFrame:
+    csvs = find_plan_csvs(root)
+    if not csvs:
+        print(f"No plan.csv files found under {root}")
+        return pd.DataFrame()
+
+    rows = []
+    for csv_path in csvs:
+        try:
+            rows.append(classify_run(csv_path))
+            print(f"Processed: {csv_path.parent.name}")
+        except Exception as e:
+            print(f"Skipped {csv_path} due to error: {e}")
+
+    df = pd.DataFrame(rows)
+    df = df.sort_values("run_start").reset_index(drop=True)
+    return df
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OUTPUT
+# ─────────────────────────────────────────────────────────────────────────────
+
+def write_csv(df: pd.DataFrame, output_path: Path) -> None:
+    out = df.copy()
+    out["fluidics_pump_min"] = out["fluidics_pump_s"] / 60
+    out["fluidics_wait_min"] = out["fluidics_wait_s"] / 60
+    out["imaging_min"] = out["imaging_s"] / 60
+    out["z_mapping_min"] = out["z_mapping_s"] / 60
+    out["total_min"] = out["total_s"] / 60
+    out["total_hr"] = out["total_s"] / 3600
+    cols = [
+        "run_path", "run_start", "run_end", "is_complete", "n_wells", "n_cycles", "n_fovs",
+        "fluidics_pump_min", "fluidics_wait_min", "imaging_min", "z_mapping_min",
+        "total_min", "total_hr",
+    ]
+    out[cols].to_csv(output_path, index=False)
+    print(f"CSV written to: {output_path}")
+
+
+def write_html(df: pd.DataFrame, output_path: Path) -> None:
+    labels = [
+        f"{row['run_start'].strftime('%Y-%m-%d')}\\n{Path(row['run_path']).name}"
+        for _, row in df.iterrows()
+    ]
+    fp = (df["fluidics_pump_s"] / 60).round(2).tolist()
+    fw = (df["fluidics_wait_s"] / 60).round(2).tolist()
+    im = (df["imaging_s"] / 60).round(2).tolist()
+    zm = (df["z_mapping_s"] / 60).round(2).tolist()
+    totals_min = (df["total_s"] / 60).round(2).tolist()
+    totals_hr = (df["total_s"] / 3600).round(2).tolist()
+
+    meta = df[["run_path", "n_wells", "n_cycles", "n_fovs"]].to_dict(orient="records")
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Run Time Tracker — Actual Run History</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: #f8f8f6; color: #1a1a1a; padding: 2rem; }}
+  h1 {{ font-size: 20px; font-weight: 500; margin-bottom: 4px; }}
+  .subtitle {{ font-size: 13px; color: #666; margin-bottom: 1.5rem; }}
+  .legend {{ display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 1.5rem; font-size: 12px; color: #555; }}
+  .legend-item {{ display: flex; align-items: center; gap: 6px; }}
+  .legend-swatch {{ width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }}
+  .chart-wrap {{ background: white; border-radius: 12px; border: 0.5px solid #e0e0d8;
+                 padding: 1.5rem; margin-bottom: 1.5rem; }}
+  .chart-title {{ font-size: 14px; font-weight: 500; margin-bottom: 1rem; color: #333; }}
+  .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+                  gap: 12px; margin-bottom: 1.5rem; }}
+  .stat {{ background: white; border-radius: 8px; border: 0.5px solid #e0e0d8; padding: 1rem; }}
+  .stat-label {{ font-size: 12px; color: #888; margin-bottom: 4px; }}
+  .stat-value {{ font-size: 22px; font-weight: 500; }}
+</style>
+</head>
+<body>
+
+<h1>Run time tracker — actual measured runs</h1>
+<p class="subtitle">Real time breakdown extracted from plan.csv files. Hover a point for details.</p>
+
+<div class="legend">
+  <span class="legend-item"><span class="legend-swatch" style="background:#D4537E"></span>Fluidics — pump</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:#BA7517"></span>Fluidics — wait</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:#1D9E75"></span>Z-mapping</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:#378ADD"></span>Imaging</span>
+</div>
+
+<div class="chart-wrap">
+  <div class="chart-title">Measured time per run (minutes)</div>
+  <div style="position:relative;width:100%;height:360px;">
+    <canvas id="mainChart" role="img" aria-label="Stacked area chart of actual measured run times broken into fluidics pump, fluidics wait, imaging, and z-mapping."></canvas>
+  </div>
+</div>
+
+<div class="stats-grid" id="stats-grid"></div>
+
+<script>
+const LABELS = {json.dumps(labels)};
+const FP = {json.dumps(fp)};
+const FW = {json.dumps(fw)};
+const IM = {json.dumps(im)};
+const ZM = {json.dumps(zm)};
+const TOTALS_MIN = {json.dumps(totals_min)};
+const TOTALS_HR = {json.dumps(totals_hr)};
+const META = {json.dumps(meta)};
+const COLORS = {{ fp: '#D4537E', fw: '#BA7517', zm: '#1D9E75', im: '#378ADD' }};
+
+const ctx = document.getElementById('mainChart').getContext('2d');
+new Chart(ctx, {{
+  type: 'line',
+  data: {{
+    labels: LABELS,
+    datasets: [
+      {{ label: 'Fluidics — pump', data: FP, backgroundColor: COLORS.fp+'cc', borderColor: COLORS.fp, borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 }},
+      {{ label: 'Fluidics — wait', data: FW, backgroundColor: COLORS.fw+'cc', borderColor: COLORS.fw, borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 }},
+      {{ label: 'Z-mapping',       data: ZM, backgroundColor: COLORS.zm+'cc', borderColor: COLORS.zm, borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 }},
+      {{ label: 'Imaging',         data: IM, backgroundColor: COLORS.im+'cc', borderColor: COLORS.im, borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 }},
+    ]
+  }},
+  options: {{
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {{ mode: 'index', intersect: false }},
+    plugins: {{
+      legend: {{ display: false }},
+      tooltip: {{
+        callbacks: {{
+          footer: (items) => {{
+            const total = items.reduce((s, i) => s + i.parsed.y, 0);
+            return 'Total: ' + total.toFixed(1) + ' min';
+          }}
+        }}
+      }}
+    }},
+    onHover: (evt, elements) => {{
+      if (elements.length > 0) updateStats(elements[0].index);
+    }},
+    scales: {{
+      x: {{ stacked: true, ticks: {{ font: {{ size: 11 }}, maxRotation: 30 }}, grid: {{ display: false }} }},
+      y: {{ stacked: true, title: {{ display: true, text: 'minutes' }}, ticks: {{ callback: v => v + ' min' }} }}
+    }}
+  }}
+}});
+
+function updateStats(i) {{
+  const m = META[i];
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat"><div class="stat-label">Run</div><div class="stat-value" style="font-size:13px">${{m.run_path.split('/').pop()}}</div></div>
+    <div class="stat"><div class="stat-label">Wells</div><div class="stat-value">${{m.n_wells}}</div></div>
+    <div class="stat"><div class="stat-label">Cycles</div><div class="stat-value">${{m.n_cycles}}</div></div>
+    <div class="stat"><div class="stat-label">FOVs</div><div class="stat-value">${{m.n_fovs}}</div></div>
+    <div class="stat"><div class="stat-label">Total time</div><div class="stat-value">${{TOTALS_HR[i].toFixed(2)}} hr</div></div>
+  `;
+}}
+
+updateStats(META.length - 1);
+</script>
+</body>
+</html>
+"""
+    output_path.write_text(html, encoding="utf-8")
+    print(f"HTML written to: {output_path}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MAIN
+# ─────────────────────────────────────────────────────────────────────────────
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python run_time_tracker.py /path/to/runs_folder")
+        sys.exit(1)
+
+    root = Path(sys.argv[1])
+    df = scan_runs(root)
+
+    if df.empty:
+        sys.exit(0)
+
+    out_dir = Path.cwd()
+    write_csv(df, out_dir / "run_time_tracker.csv")
+    write_html(df, out_dir / "run_time_tracker.html")
+
+    print("\n── Summary ──")
+    for _, row in df.iterrows():
+        flag = "" if row["is_complete"] else "  [INCOMPLETE]"
+        print(f"\n{row['run_start']} — {Path(row['run_path']).name}{flag}")
+        print(f"  Wells: {row['n_wells']}, Cycles: {row['n_cycles']}, FOVs: {row['n_fovs']}")
+        if not row["is_complete"]:
+            print(f"  (aborted: {row['n_aborted']}, pending: {row['n_pending']}, failed: {row['n_failed']} steps)")
+        print(f"  Fluidics pump : {row['fluidics_pump_s']/60:.1f} min")
+        print(f"  Fluidics wait : {row['fluidics_wait_s']/60:.1f} min")
+        print(f"  Imaging       : {row['imaging_s']/60:.1f} min")
+        print(f"  Z-mapping     : {row['z_mapping_s']/60:.1f} min")
+        print(f"  Total (completed steps only): {row['total_s']/3600:.2f} hr")
