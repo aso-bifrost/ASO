@@ -9,7 +9,7 @@ ACTUAL measured time spent in 4 categories per run:
   - z_mapping       : z-stack acquisition (z_stack_begin/end + z_stack_move_z_N + nested acquire)
 
 This is the REAL counterpart to run_time_estimator.py (which projects theoretical time).
-Use this to validate estimator parameters against what actually happened, and to track
+Used to validate estimator parameters against what actually happened, and to track
 real run durations over time.
 
 Usage:
@@ -21,6 +21,7 @@ Usage:
 from __future__ import annotations
 import sys
 import json
+import subprocess
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
@@ -297,6 +298,29 @@ updateStats(META.length - 1);
 # MAIN
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ─────────────────────────────────────────────────────────────────────────────
+# GITHUB PUSH
+# ─────────────────────────────────────────────────────────────────────────────
+
+REPO_DIR = Path("/Users/agathesolans/ASO")  # local git repo path
+DOWNLOADS_DIR = Path.home() / "Downloads"
+
+
+def push_to_github(html_path: Path, repo_dir: Path) -> None:
+    commit_message = f"Update run time tracker — {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    try:
+        subprocess.run(["git", "-C", str(repo_dir), "add", html_path.name], check=True)
+        subprocess.run(["git", "-C", str(repo_dir), "commit", "-m", commit_message], check=True)
+        subprocess.run(["git", "-C", str(repo_dir), "push"], check=True)
+        print(f"Pushed to GitHub: {commit_message}")
+    except subprocess.CalledProcessError as e:
+        print(f"Git push failed: {e}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MAIN
+# ─────────────────────────────────────────────────────────────────────────────
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python run_time_tracker.py /path/to/runs_folder")
@@ -308,9 +332,13 @@ if __name__ == "__main__":
     if df.empty:
         sys.exit(0)
 
-    out_dir = Path.cwd()
-    write_csv(df, out_dir / "run_time_tracker.csv")
-    write_html(df, out_dir / "run_time_tracker.html")
+    # CSV -> Downloads
+    write_csv(df, DOWNLOADS_DIR / "run_time_tracker.csv")
+
+    # HTML -> directly into the git repo, then push
+    html_path = REPO_DIR / "run_time_tracker.html"
+    write_html(df, html_path)
+    push_to_github(html_path, REPO_DIR)
 
     print("\n── Summary ──")
     for _, row in df.iterrows():
