@@ -151,6 +151,24 @@ IMAGING_reducedcomm_10X = ImagingParams(
     z_map_move_ms=2554.0,
 )
 
+IMAGING_optimizedtime_10X = ImagingParams(
+    objective="10x",
+    fovs_per_well=475,
+    channels=["405", "561", "638"],
+    exposure_ms=[25.0, 300.0, 300.0],
+    simultaneous_pairs=[["561", "638"]],
+    fov_move_ms=147.2,
+    camera_overhead_ms=212.0,
+    set_wheels_ms=4.7,
+    set_led_ms=0.6,
+    end_stack_ms=53.6,
+    z_map_duration_per_well_s=176.5, #from Json file
+    z_map_points_per_well=33,
+    z_map_slices_per_point=11,
+    z_map_exposure_ms=25.0,
+    z_map_move_ms=2554.0,
+)
+
 IMAGING_4X = ImagingParams(
     objective="4x",
     fovs_per_well=75,
@@ -226,6 +244,17 @@ VERSIONS: list[VersionConfig] = [
             pumps=PUMPS_KNF,
             fluidics=FLUIDICS,
             imaging=IMAGING_reducedcomm_10X,
+            instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
+        ),
+    
+    VersionConfig(
+            date="2026-07-06",
+            label="Optimized imaging time",
+            notes="Parallelized actions and implemeted real time binning",
+            cycles=12,
+            pumps=PUMPS_KNF,
+            fluidics=FLUIDICS,
+            imaging=IMAGING_optimizedtime_10X,
             instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
         ),
 
