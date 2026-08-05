@@ -564,6 +564,10 @@ def generate_html(versions: list[VersionConfig], output_path: Path) -> None:
   .stat-label {{ font-size: 12px; color: #888; margin-bottom: 4px; }}
   .stat-value {{ font-size: 22px; font-weight: 500; }}
   .notes-wrap {{ font-size: 12px; color: #888; margin-top: 8px; font-style: italic; }}
+  .assumption-wrap {{ background: white; border-radius: 8px; border: 0.5px solid #e0e0d8;
+                      padding: 1rem; margin-bottom: 1.5rem; }}
+  .assumption-title {{ font-size: 12px; color: #888; margin-bottom: 4px; }}
+  .assumption-value {{ font-size: 14px; color: #333; line-height: 1.45; }}
   #drilldown-wrap {{ display: none; }}
   #drilldown-wrap.visible {{ display: block; }}
   .back-btn {{ font-size: 12px; color: #378ADD; cursor: pointer; text-decoration: underline;
@@ -601,6 +605,11 @@ def generate_html(versions: list[VersionConfig], output_path: Path) -> None:
 </div>
 
 <div class="stats-grid" id="stats-grid"></div>
+
+<div class="assumption-wrap">
+  <div class="assumption-title">Assumptions for selected version</div>
+  <div class="assumption-value" id="assumption-text">Hover a point to view assumptions.</div>
+</div>
 
 <div id="drilldown-wrap" class="chart-wrap">
   <button class="back-btn" onclick="closeDrilldown()">← back to overview</button>
@@ -734,6 +743,14 @@ function updateStats(i) {{
     <div class="stat"><div class="stat-label">Total run time</div><div class="stat-value">${{d.run_totals[i].toFixed(1)}} hr</div></div>
     <div class="stat"><div class="stat-label">Objective / Wells / FOVs</div><div class="stat-value" style="font-size:15px">${{v.objective}} / ${{v.wells}}W / ${{v.fovs_per_well}} FOV</div></div>
   `;
+  updateAssumptionText(i);
+}}
+
+function updateAssumptionText(i) {{
+  const v = D().versions[i];
+  const assumption = (v.notes || '').trim();
+  document.getElementById('assumption-text').textContent =
+    assumption.length > 0 ? assumption : 'No assumptions entered for this version.';
 }}
 
 function showMode(mode) {{
