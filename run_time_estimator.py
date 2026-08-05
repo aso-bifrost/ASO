@@ -86,6 +86,7 @@ class VersionConfig:
     imaging: ImagingParams
     instrument: InstrumentParams
     notes: str = ""
+    assumptions: str = ""
     first_cycle_z_map_duration_per_well_s: Optional[float] = None
     subsequent_cycle_z_map_duration_per_well_s: Optional[float] = None
 
@@ -260,7 +261,9 @@ VERSIONS: list[VersionConfig] = [
     VersionConfig(
         date="2026-04-07",
         label="Baseline (Lee pumps)",
-        notes="Baseline 6W Lee pumps, 10x objective.",
+        notes="Baseline 6W Lee pumps.",
+      assumptions="Fluidics: SOP protocol, side aspirate puck, aspirate =12s" \
+      "Z-mapping: 33 points per well, 100um range every cycle. ",
         cycles=12,
         instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
         fluidics=FLUIDICS_LEE,
@@ -270,7 +273,9 @@ VERSIONS: list[VersionConfig] = [
     VersionConfig(
         date="2026-06-10",
         label="KNF pump switch",
-        notes="Switched to KNF pumps, 6W, 10x.",
+        notes="Switched to KNF pumps.",
+      assumptions="Fluidics: SOP protocol" \
+      "Z-mapping: 33 points per well, 100um range every cycle. ",
         cycles=12,
         instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
         fluidics=FLUIDICS_KNF,
@@ -281,6 +286,8 @@ VERSIONS: list[VersionConfig] = [
         date="2026-06-22",
         label="Reduced communication time",
         notes="Reduced time to communicate betwn PC and Heimdall, and parallelized move/wheel/LED actions",
+      assumptions="Fluidics: SOP protocol" \
+      "Z-mapping: 33 points per well, 100um range every cycle. ",
         cycles=12,
         instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
         fluidics=FLUIDICS_KNF,
@@ -290,7 +297,9 @@ VERSIONS: list[VersionConfig] = [
     VersionConfig(
             date="2026-XX-XX",
             label="Center puck aspirate",
-            notes="Theoretical time gain if center puck design with lower volumes.",
+            notes="Theoretical time gain if center puck design lowering aspiration from 12s to 7s, and lowering volume for 650ul to 500ul",
+          assumptions="Fluidics: SOP Prototcol. Assumes center-puck fluidics geometry, 500 uL exchanges, and 7 s aspirate duration." \
+          "Z-mapping: 33 points per well, 100um range every cycle. ",
             cycles=12,
             instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
             fluidics=FLUIDICS_KNF_centerpuck,
@@ -301,6 +310,8 @@ VERSIONS: list[VersionConfig] = [
       date="2026-XX-XX",
       label="Theoretical reduced wash & z-mapping",
       notes="Theoretical time gain removed 4 total washes per cycle and reduced z-mapping to 50um after first cycle.",
+    assumptions="Fluidics: Assumes reduced MB2 wash counts. Assumes center puck fluidics." \
+    "Z-mapping: Assumes 50um scan is enough for cycles 2-12",
       cycles=12,
       instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
       fluidics=FLUIDICS_KNF_centerpuck_reducedwash,
@@ -313,7 +324,9 @@ VERSIONS: list[VersionConfig] = [
     VersionConfig(
         date="2026-04-07",
         label="Baseline (Lee pumps)",
-        notes="Baseline 6W Lee pumps, 4x objective.",
+        notes="Baseline 6W Lee pumps.",
+      assumptions="Fluidics: SOP protocol" \
+      "Z-mapping: 4x z-mapping timing is estimated from FOV scaling from 10x, no test has been done yet.",
         cycles=12,
         instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
         fluidics=FLUIDICS_LEE,
@@ -323,7 +336,9 @@ VERSIONS: list[VersionConfig] = [
     VersionConfig(
         date="2026-06-10",
         label="KNF pump switch",
-        notes="Switched to KNF pumps, 6W, 4x.",
+        notes="Switched to KNF pumps.",
+      assumptions="Fluidics: SOP protocol" \
+      "Z-mapping: 4x z-mapping timing is estimated from FOV scaling from 10x, no test has been done yet.",
         cycles=12,
         instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
         fluidics=FLUIDICS_KNF,
@@ -334,6 +349,8 @@ VERSIONS: list[VersionConfig] = [
         date="2026-06-22",
         label="Reduced communication time",
         notes="Reduced time to communicate betwn PC and Heimdall, and parallelized move/wheel/LED actions",
+      assumptions="Fluidics: SOP protocol" \
+      "Z-mapping: 5 points per well, 100um range every cycle. ",
         cycles=12,
         instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
         fluidics=FLUIDICS_KNF,
@@ -344,6 +361,8 @@ VERSIONS: list[VersionConfig] = [
       date="2026-XX-XX",
       label="Center puck aspirate",
       notes="Theoretical time gain if center puck design with lower volumes.",
+      assumptions="Fluidics: SOP Prototcol. Assumes center-puck fluidics geometry, 500 uL exchanges, and 7 s aspirate duration." \
+      "Z-mapping: 5 points per well, 100um range every cycle. ",
       cycles=12,
       instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
       fluidics=FLUIDICS_KNF_centerpuck,
@@ -354,6 +373,8 @@ VERSIONS: list[VersionConfig] = [
       date="2026-XX-XX",
       label="Theoretical reduced wash & z-mapping",
       notes="Theoretical time gain removed 4 total washes per cycle and reduced z-mapping to 50um after first cycle.",
+      assumptions="Fluidics: Assumes reduced MB2 wash counts. Assumes center puck fluidics." \
+      "Z-mapping: Assumes 50um scan is enough for cycles 2-12",
       cycles=12,
       instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
       fluidics=FLUIDICS_KNF_centerpuck_reducedwash,
@@ -506,6 +527,7 @@ def generate_html(versions: list[VersionConfig], output_path: Path) -> None:
                 "date": v.date,
                 "label": v.label,
                 "notes": v.notes,
+              "assumptions": v.assumptions,
                 "cycles": v.cycles,
                 "objective": v.imaging.objective,
                 "wells": v.instrument.wells,
@@ -748,7 +770,7 @@ function updateStats(i) {{
 
 function updateAssumptionText(i) {{
   const v = D().versions[i];
-  const assumption = (v.notes || '').trim();
+  const assumption = (v.assumptions || '').trim();
   document.getElementById('assumption-text').textContent =
     assumption.length > 0 ? assumption : 'No assumptions entered for this version.';
 }}
