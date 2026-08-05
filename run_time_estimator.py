@@ -1,6 +1,5 @@
 """
 Run Time Estimator
-
 ==================
 Estimates total cycle time broken down into fluidics and imaging components.
 Add new entries to VERSIONS to track improvements over time.
@@ -17,8 +16,6 @@ import json
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional
-from datetime import datetime
-import subprocess
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -27,13 +24,15 @@ import subprocess
 
 @dataclass
 class FluidicsStep:
+    """One fluidic step: reagent name, repeat count, volumes, speeds, wait time."""
     name: str
     reagent: str
     repeats: int
-    volume_ul: float
-    wait_min: float
-    in_cycle_0: bool
-    # no pump fields here anymore
+    volume_ul: float           # per well per repeat (used for dispense calc)
+    aspirate_duration_s: float # fixed aspirate duration per well (set as time, not flow rate)
+    dispense_speed_ul_s: float # dispense flow rate in ul/s (volume / speed = dispense time)
+    wait_min: float            # incubation wait after dispense (starts per-well)
+    in_cycle_0: bool           # True = included in cycle 0, False = skipped in cycle 0
 
 
 @dataclass
@@ -68,15 +67,6 @@ class ImagingParams:
                                          # includes coarse xy move + z-moves between slices
                                          # derived: (total_per_point - slices*slice_ms - overhead)
 
-@dataclass
-class PumpParams:
-    """Pump-level timing parameters."""
-    aspirate_duration_s: float   # fixed aspirate time per well
-    dispense_speed_ul_s: float   # flow rate in ul/s
-
-PUMPS_LEE = PumpParams(aspirate_duration_s=12, dispense_speed_ul_s=100)
-PUMPS_KNF = PumpParams(aspirate_duration_s=12, dispense_speed_ul_s=300)
-
 
 @dataclass
 class InstrumentParams:
@@ -92,23 +82,46 @@ class VersionConfig:
     date: str                          # "YYYY-MM-DD" — x-axis label
     label: str                         # short description shown on chart
     cycles: int                        # total number of imaging cycles
-    pumps: PumpParams                      
     fluidics: list[FluidicsStep]
     imaging: ImagingParams
     instrument: InstrumentParams
     notes: str = ""
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# SHARED FLUIDICS — define once, reuse across versions with the same protocol
+# ─────────────────────────────────────────────────────────────────────────────
 
-FLUIDICS = [
-    FluidicsStep("JCM cleave",    "JCM",     repeats=1, volume_ul=650, wait_min=6.0,  in_cycle_0=False),
-    FluidicsStep("MB2 wash fast", "MB2",     repeats=3, volume_ul=650, wait_min=0.1,  in_cycle_0=False),
-    FluidicsStep("MB2 wash slow", "MB2",     repeats=3, volume_ul=650, wait_min=2.0,  in_cycle_0=False),
-    FluidicsStep("JIM inc",       "JIM",     repeats=1, volume_ul=650, wait_min=15.0, in_cycle_0=True),
-    FluidicsStep("MB2 wash x5",   "MB2",     repeats=5, volume_ul=650, wait_min=0.1,  in_cycle_0=True),
-    FluidicsStep("MB2 wash x4",   "MB2",     repeats=4, volume_ul=650, wait_min=5.0,  in_cycle_0=True),
-    FluidicsStep("Imaging buf",   "imaging", repeats=1, volume_ul=650, wait_min=0.1,  in_cycle_0=True),
+FLUIDICS_LEE = [
+    FluidicsStep("JCM cleave",    "JCM",     repeats=1, volume_ul=650, aspirate_duration_s=12, dispense_speed_ul_s=100, wait_min=6.0,  in_cycle_0=False),
+    FluidicsStep("MB2 wash fast", "MB2",     repeats=3, volume_ul=650, aspirate_duration_s=12, dispense_speed_ul_s=100, wait_min=0.1,  in_cycle_0=False),
+    FluidicsStep("MB2 wash slow", "MB2",     repeats=3, volume_ul=650, aspirate_duration_s=12, dispense_speed_ul_s=100, wait_min=2.0,  in_cycle_0=False),
+    FluidicsStep("JIM inc",       "JIM",     repeats=1, volume_ul=650, aspirate_duration_s=12, dispense_speed_ul_s=100, wait_min=15.0, in_cycle_0=True),
+    FluidicsStep("MB2 wash x5",   "MB2",     repeats=5, volume_ul=650, aspirate_duration_s=12, dispense_speed_ul_s=100, wait_min=0.1,  in_cycle_0=True),
+    FluidicsStep("MB2 wash x4",   "MB2",     repeats=4, volume_ul=650, aspirate_duration_s=12, dispense_speed_ul_s=100, wait_min=5.0,  in_cycle_0=True),
+    FluidicsStep("Imaging buf",   "imaging", repeats=1, volume_ul=650, aspirate_duration_s=12, dispense_speed_ul_s=100, wait_min=0.1,  in_cycle_0=True),
 ]
+
+FLUIDICS_KNF = [
+    FluidicsStep("JCM cleave",    "JCM",     repeats=1, volume_ul=650, aspirate_duration_s=12, dispense_speed_ul_s=300, wait_min=6.0,  in_cycle_0=False),
+    FluidicsStep("MB2 wash fast", "MB2",     repeats=3, volume_ul=650, aspirate_duration_s=12, dispense_speed_ul_s=300, wait_min=0.1,  in_cycle_0=False),
+    FluidicsStep("MB2 wash slow", "MB2",     repeats=3, volume_ul=650, aspirate_duration_s=12, dispense_speed_ul_s=300, wait_min=2.0,  in_cycle_0=False),
+    FluidicsStep("JIM inc",       "JIM",     repeats=1, volume_ul=650, aspirate_duration_s=12, dispense_speed_ul_s=300, wait_min=15.0, in_cycle_0=True),
+    FluidicsStep("MB2 wash x5",   "MB2",     repeats=5, volume_ul=650, aspirate_duration_s=12, dispense_speed_ul_s=300, wait_min=0.1,  in_cycle_0=True),
+    FluidicsStep("MB2 wash x4",   "MB2",     repeats=4, volume_ul=650, aspirate_duration_s=12, dispense_speed_ul_s=300, wait_min=5.0,  in_cycle_0=True),
+    FluidicsStep("Imaging buf",   "imaging", repeats=1, volume_ul=650, aspirate_duration_s=12, dispense_speed_ul_s=300, wait_min=0.1,  in_cycle_0=True),
+]
+
+FLUIDICS_KNF_centerpuck = [
+    FluidicsStep("JCM cleave",    "JCM",     repeats=1, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=6.0,  in_cycle_0=False),
+    FluidicsStep("MB2 wash fast", "MB2",     repeats=3, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=0.1,  in_cycle_0=False),
+    FluidicsStep("MB2 wash slow", "MB2",     repeats=3, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=2.0,  in_cycle_0=False),
+    FluidicsStep("JIM inc",       "JIM",     repeats=1, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=15.0, in_cycle_0=True),
+    FluidicsStep("MB2 wash x5",   "MB2",     repeats=5, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=0.1,  in_cycle_0=True),
+    FluidicsStep("MB2 wash x4",   "MB2",     repeats=4, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=5.0,  in_cycle_0=True),
+    FluidicsStep("Imaging buf",   "imaging", repeats=1, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=0.1,  in_cycle_0=True),
+]
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -121,7 +134,7 @@ IMAGING_10X = ImagingParams(
     channels=["405", "561", "638"],
     exposure_ms=[25.0, 300.0, 300.0],
     simultaneous_pairs=[["561", "638"]],
-    fov_move_ms=560.0,
+    fov_move_ms=580.0,
     camera_overhead_ms=580.0,
     set_wheels_ms=51.0,
     set_led_ms=26.0,
@@ -133,49 +146,13 @@ IMAGING_10X = ImagingParams(
     z_map_move_ms=2554.0,
 )
 
-IMAGING_reducedcomm_10X = ImagingParams(
-    objective="10x",
-    fovs_per_well=475,
-    channels=["405", "561", "638"],
-    exposure_ms=[25.0, 300.0, 300.0],
-    simultaneous_pairs=[["561", "638"]],
-    fov_move_ms=380.0,
-    camera_overhead_ms=484.0,
-    set_wheels_ms=15.2,
-    set_led_ms=0.6,
-    end_stack_ms=49.0,
-    z_map_duration_per_well_s=322.5+0.165, #354.8 from JSON file /11 * 10, for 10 slices, now +165 for overshoot
-    z_map_points_per_well=33,
-    z_map_slices_per_point=10,
-    z_map_exposure_ms=25.0,
-    z_map_move_ms=2554.0,
-)
-
-IMAGING_optimizedtime_10X = ImagingParams(
-    objective="10x",
-    fovs_per_well=475,
-    channels=["405", "561", "638"],
-    exposure_ms=[25.0, 300.0, 300.0],
-    simultaneous_pairs=[["561", "638"]],
-    fov_move_ms=147.2,
-    camera_overhead_ms=212.0,
-    set_wheels_ms=4.7,
-    set_led_ms=0.6,
-    end_stack_ms=53.6,
-    z_map_duration_per_well_s=176.5, #from Json file
-    z_map_points_per_well=33,
-    z_map_slices_per_point=11,
-    z_map_exposure_ms=25.0,
-    z_map_move_ms=2554.0,
-)
-
 IMAGING_4X = ImagingParams(
     objective="4x",
     fovs_per_well=75,
     channels=["405", "561", "638"],
     exposure_ms=[25.0, 300.0, 300.0],
     simultaneous_pairs=[["561", "638"]],
-    fov_move_ms=560.0,              # likely similar stage speed
+    fov_move_ms=580.0,              # likely similar stage speed
     camera_overhead_ms=580.0,       # same camera hardware
     set_wheels_ms=51.0,
     set_led_ms=26.0,
@@ -187,17 +164,53 @@ IMAGING_4X = ImagingParams(
     z_map_move_ms=2554.0,           # placeholder — update when measured
 )
 
+#IMAGING_reducedcomm_10X = ImagingParams(
+    #objective="10x",
+    #fovs_per_well=475,
+    #channels=["405", "561", "638"],
+   # exposure_ms=[25.0, 300.0, 300.0],
+    #simultaneous_pairs=[["561", "638"]],
+   # fov_move_ms=380.0,
+   # camera_overhead_ms=484.0,
+   # set_wheels_ms=15.2,
+   # set_led_ms=0.6,
+   # end_stack_ms=49.0,
+   # z_map_duration_per_well_s=322.5, #354.8 from JSON file /11 * 10, for 10 slices
+   # z_map_points_per_well=33,
+   # z_map_slices_per_point=10,
+   # z_map_exposure_ms=25.0,
+   # z_map_move_ms=2554.0,
+#)
+
+IMAGING_reducedcomm_10X = ImagingParams(
+    objective="10x",
+    fovs_per_well=475,
+    channels=["405", "561", "638"],
+    exposure_ms=[25.0, 300.0, 300.0],
+    simultaneous_pairs=[["561", "638"]],
+    fov_move_ms=145.0,              # likely similar stage speed
+    camera_overhead_ms=430.0,       # same camera hardware
+    set_wheels_ms=0,  #done in parallel with fov move
+    set_led_ms=0, # done in parallel with fov move
+    end_stack_ms=40.0,
+    z_map_duration_per_well_s=322.5, #354.8 from JSON file /11 * 10, for 10 slices
+    z_map_points_per_well=33,
+    z_map_slices_per_point=10,
+    z_map_exposure_ms=25.0,
+    z_map_move_ms=2554.0,
+)
+
 IMAGING_reducedcomm_4X = ImagingParams(
     objective="4x",
     fovs_per_well=75,
     channels=["405", "561", "638"],
     exposure_ms=[25.0, 300.0, 300.0],
     simultaneous_pairs=[["561", "638"]],
-    fov_move_ms=380.0,              # likely similar stage speed
-    camera_overhead_ms=484.0,       # same camera hardware
-    set_wheels_ms=15.2,
-    set_led_ms=0.6,
-    end_stack_ms=49.0,
+    fov_move_ms=145.0,              # likely similar stage speed
+    camera_overhead_ms=430.0,       # same camera hardware
+    set_wheels_ms=0,  # done in parallel with fov move
+    set_led_ms=0,     # done in parallel with fov move
+    end_stack_ms=40.0,
     z_map_duration_per_well_s=56.0, # estimate: 75 * 0.07 ≈ 5 points, scale from 10x
     z_map_points_per_well=5,        # 7% of 75 FOVs ≈ 5 points
     z_map_slices_per_point=10,
@@ -212,117 +225,89 @@ IMAGING_reducedcomm_4X = ImagingParams(
 
 VERSIONS: list[VersionConfig] = [
 
-    
-    # ── 10x ──────────────────────────────────────────────────────────────────
- 
+    # ── 10x versions ──
+
     VersionConfig(
         date="2026-04-07",
-        label="Baseline",
+        label="Baseline (Lee pumps)",
         notes="Baseline 6W Lee pumps, 10x objective.",
         cycles=12,
-        pumps=PUMPS_LEE,
-        fluidics=FLUIDICS,
-        imaging=IMAGING_10X,
         instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
+        fluidics=FLUIDICS_LEE,
+        imaging=IMAGING_10X,
     ),
- 
+
     VersionConfig(
         date="2026-06-10",
         label="KNF pump switch",
         notes="Switched to KNF pumps, 6W, 10x.",
         cycles=12,
-        pumps=PUMPS_KNF,
-        fluidics=FLUIDICS,
-        imaging=IMAGING_10X,
         instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
+        fluidics=FLUIDICS_KNF,
+        imaging=IMAGING_10X,
     ),
+
     VersionConfig(
-            date="2026-06-22",
-            label="Reduced communication time & Z backlash",
-            notes="Reduced comm time between PC and Heimdall.",
+        date="2026-06-22",
+        label="Reduced communication time",
+        notes="Reduced time to communicate betwn PC and Heimdall.",
+        cycles=12,
+        instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
+        fluidics=FLUIDICS_KNF,
+        imaging=IMAGING_reducedcomm_10X,
+    ),
+
+    VersionConfig(
+            date="2026-XX-XX",
+            label="Center puck aspirate",
+            notes="Theoretical time gain if center puck design.",
             cycles=12,
-            pumps=PUMPS_KNF,
-            fluidics=FLUIDICS,
+            instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
+            fluidics=FLUIDICS_KNF_centerpuck,
             imaging=IMAGING_reducedcomm_10X,
-            instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
-        ),
-    
-    VersionConfig(
-            date="2026-07-06",
-            label="Optimized imaging time",
-            notes="Parallelized actions and implemeted real time binning",
-            cycles=12,
-            pumps=PUMPS_KNF,
-            fluidics=FLUIDICS,
-            imaging=IMAGING_optimizedtime_10X,
-            instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
         ),
 
-    # ── 4x ───────────────────────────────────────────────────────────────────
- 
+    # ── 4x versions ──
+
     VersionConfig(
         date="2026-04-07",
-        label="Baseline",
+        label="Baseline (Lee pumps)",
         notes="Baseline 6W Lee pumps, 4x objective.",
         cycles=12,
-        pumps=PUMPS_LEE,
-        fluidics=FLUIDICS,
-        imaging=IMAGING_4X,
         instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
+        fluidics=FLUIDICS_LEE,
+        imaging=IMAGING_4X,
     ),
- 
+
     VersionConfig(
         date="2026-06-10",
         label="KNF pump switch",
         notes="Switched to KNF pumps, 6W, 4x.",
         cycles=12,
-        pumps=PUMPS_KNF,
-        fluidics=FLUIDICS,
-        imaging=IMAGING_4X,
         instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
+        fluidics=FLUIDICS_KNF,
+        imaging=IMAGING_4X,
     ),
 
     VersionConfig(
         date="2026-06-22",
-        label="Reduced communication time & Z backlash",
-        notes="Reduced comm time between PC and Heimdall.",
+        label="Reduced communication time",
+        notes="Reduced time to communicate betwn PC and Heimdall.",
         cycles=12,
-        pumps=PUMPS_KNF,
-        fluidics=FLUIDICS,
-        imaging=IMAGING_reducedcomm_4X,
         instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
+        fluidics=FLUIDICS_KNF,
+        imaging=IMAGING_reducedcomm_4X,
     ),
- 
-    # ── ADD NEW VERSIONS BELOW ──
-    # VersionConfig(
-    #     date="2026-07-01",
-    #     label="Shorter incubations",
-    #     notes="JCM 4min, JIM 10min — validated biology.",
-    #     cycles=12,
-    #     pumps=PUMPS_KNF,                  # same pumps
-    #     fluidics=FLUIDICS_SHORT_INC,       # shorter wait times
-    #     imaging=IMAGING_10X,
-    #     instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
-    # ),
-    #
-    # VersionConfig(
-    #     date="2026-08-01",
-    #     label="PWM trigger mode",
-    #     notes="Camera overhead reduced via PWM trigger mode.",
-    #     cycles=12,
-    #     pumps=PUMPS_KNF,
-    #     fluidics=FLUIDICS_STANDARD,
-    #     imaging=ImagingParams(
-    #         **{**IMAGING_10X.__dict__,
-    #            "camera_overhead_ms": 150.0,        # update after PWM fix
-    #            "z_map_duration_per_well_s": ????,   # re-run z-map and paste total_duration_s
-    #        }
-    #     ),
-    #     instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
-    # ),
- 
-]
- 
+
+    VersionConfig(
+                date="2026-XX-XX",
+                label="Center puck aspirate",
+                notes="Theoretical time gain if center puck design.",
+                cycles=12,
+                instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
+                fluidics=FLUIDICS_KNF_centerpuck,
+                imaging=IMAGING_reducedcomm_4X,
+            ),
 
     # ── ADD NEW VERSIONS BELOW ──
     # VersionConfig(
@@ -339,20 +324,20 @@ VERSIONS: list[VersionConfig] = [
     #     ),
     # ),
 
-
+]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CALCULATOR
 # ─────────────────────────────────────────────────────────────────────────────
 
-def fluidics_step_time_min(step: FluidicsStep, pumps: PumpParams, instrument: InstrumentParams) -> dict:
+def fluidics_step_time_min(step: FluidicsStep, instrument: InstrumentParams) -> dict:
     """Returns pump_min and wait_min for this step."""
     wells = instrument.wells
     per_well_s = (
         instrument.needle_insert_s
-        + pumps.aspirate_duration_s
-        + (step.volume_ul / pumps.dispense_speed_ul_s)
+        + step.aspirate_duration_s
+        + (step.volume_ul / step.dispense_speed_ul_s)
         + instrument.needle_retract_s
     )
     pump_total_min = (per_well_s * wells * step.repeats) / 60.0
@@ -361,6 +346,7 @@ def fluidics_step_time_min(step: FluidicsStep, pumps: PumpParams, instrument: In
         "pump_min": pump_total_min,
         "wait_min": wait_total_min,
     }
+
 
 def imaging_time_min(imaging: ImagingParams, wells: int) -> dict:
     """Returns z_map_min and acquisition_min."""
@@ -408,7 +394,7 @@ def compute_cycle_breakdown(config: VersionConfig, cycle_index: int) -> dict:
     for step in config.fluidics:
         if is_first_cycle and not step.in_cycle_0:
             continue
-        times = fluidics_step_time_min(step, config.pumps, config.instrument)
+        times = fluidics_step_time_min(step, config.instrument)
         fluidics_pump += times["pump_min"]
         fluidics_wait += times["wait_min"]
     img = imaging_time_min(config.imaging, config.instrument.wells)
@@ -668,16 +654,16 @@ function buildMainChart() {{
 function updateStats(i) {{
   const d = D();
   const v = d.versions[i];
-  const total = d.totals[i] / 60;
+  const total = d.totals[i];
   const fl = (d.fp[i] + d.fw[i]).toFixed(1);
   const img = (d.zm[i] + d.aq[i]).toFixed(1);
   document.getElementById('stats-grid').innerHTML = `
     <div class="stat"><div class="stat-label">Version</div><div class="stat-value" style="font-size:15px">${{v.label}}</div></div>
-    <div class="stat"><div class="stat-label">Mean cycle time</div><div class="stat-value">${{total.toFixed(2)}} hr</div></div>
+    <div class="stat"><div class="stat-label">Mean cycle time</div><div class="stat-value">${{total.toFixed(1)}} min</div></div>
     <div class="stat"><div class="stat-label">Fluidics total</div><div class="stat-value">${{fl}} min</div></div>
     <div class="stat"><div class="stat-label">Imaging total</div><div class="stat-value">${{img}} min</div></div>
-    <div class="stat"><div class="stat-label">Total run time (${{v.cycles}} cycles)</div><div class="stat-value">${{d.run_totals[i].toFixed(1)}} hr</div></div>
-    <div class="stat"><div class="stat-label">Objective / Wells / FOVs per well</div><div class="stat-value" style="font-size:20px">${{v.objective}} / ${{v.wells}}W / ${{v.fovs_per_well}} </div></div>
+    <div class="stat"><div class="stat-label">Total run time</div><div class="stat-value">${{d.run_totals[i].toFixed(1)}} hr</div></div>
+    <div class="stat"><div class="stat-label">Objective / Wells / FOVs</div><div class="stat-value" style="font-size:15px">${{v.objective}} / ${{v.wells}}W / ${{v.fovs_per_well}} FOV</div></div>
   `;
 }}
 
@@ -742,7 +728,7 @@ updateStats(D().versions.length - 1);
 # ─────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    output = Path("/Users/agathesolans/ASO") / "run_time_chart.html"
+    output = Path(__file__).parent / "run_time_chart.html"
     generate_html(VERSIONS, output)
 
     print("\n── Summary ──")
@@ -755,17 +741,3 @@ if __name__ == "__main__":
         print(f"  Z-mapping       : {s['z_mapping']:.1f} min")
         print(f"  Acquisition     : {s['acquisition']:.1f} min")
         print(f"  Total run time  : {s['total_run_min']/60:.1f} hr")
-
-    REPO_DIR = Path("/Users/agathesolans/ASO")  # path to your local repo
-
-def push_to_github(output: Path, repo_dir: Path) -> None:
-    commit_message = f"Update run time chart — {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-    try:
-        subprocess.run(["git", "-C", str(repo_dir), "add", output.name], check=True)
-        subprocess.run(["git", "-C", str(repo_dir), "commit", "-m", commit_message], check=True)
-        subprocess.run(["git", "-C", str(repo_dir), "push"], check=True)
-        print(f"Pushed to GitHub: {commit_message}")
-    except subprocess.CalledProcessError as e:
-        print(f"Git push failed: {e}")
-
-push_to_github(output, REPO_DIR)
