@@ -86,6 +86,8 @@ class VersionConfig:
     imaging: ImagingParams
     instrument: InstrumentParams
     notes: str = ""
+    first_cycle_z_map_duration_per_well_s: Optional[float] = None
+    subsequent_cycle_z_map_duration_per_well_s: Optional[float] = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -118,6 +120,16 @@ FLUIDICS_KNF_centerpuck = [
     FluidicsStep("MB2 wash slow", "MB2",     repeats=3, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=2.0,  in_cycle_0=False),
     FluidicsStep("JIM inc",       "JIM",     repeats=1, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=15.0, in_cycle_0=True),
     FluidicsStep("MB2 wash x5",   "MB2",     repeats=5, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=0.1,  in_cycle_0=True),
+    FluidicsStep("MB2 wash x4",   "MB2",     repeats=4, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=5.0,  in_cycle_0=True),
+    FluidicsStep("Imaging buf",   "imaging", repeats=1, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=0.1,  in_cycle_0=True),
+]
+
+FLUIDICS_KNF_centerpuck_reducedwash = [
+    FluidicsStep("JCM cleave",    "JCM",     repeats=1, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=6.0,  in_cycle_0=False),
+    FluidicsStep("MB2 wash fast", "MB2",     repeats=2, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=0.1,  in_cycle_0=False),
+    FluidicsStep("MB2 wash slow", "MB2",     repeats=2, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=2.0,  in_cycle_0=False),
+    FluidicsStep("JIM inc",       "JIM",     repeats=1, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=15.0, in_cycle_0=True),
+    FluidicsStep("MB2 wash x5",   "MB2",     repeats=3, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=0.1,  in_cycle_0=True),
     FluidicsStep("MB2 wash x4",   "MB2",     repeats=4, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=5.0,  in_cycle_0=True),
     FluidicsStep("Imaging buf",   "imaging", repeats=1, volume_ul=500, aspirate_duration_s=7, dispense_speed_ul_s=300, wait_min=0.1,  in_cycle_0=True),
 ]
@@ -181,6 +193,24 @@ IMAGING_4X = ImagingParams(
    # z_map_exposure_ms=25.0,
    # z_map_move_ms=2554.0,
 #)
+
+IMAGING_reducedcomm_10X = ImagingParams(
+    objective="10x",
+    fovs_per_well=475,
+    channels=["405", "561", "638"],
+    exposure_ms=[25.0, 300.0, 300.0],
+    simultaneous_pairs=[["561", "638"]],
+    fov_move_ms=145.0,              # likely similar stage speed
+    camera_overhead_ms=215.0,       # same camera hardware
+    set_wheels_ms=0,  #done in parallel with fov move
+    set_led_ms=0, # done in parallel with fov move
+    end_stack_ms=40.0,
+    z_map_duration_per_well_s=178.4, #assuming 100 micron range, updated for reduced comm time
+    z_map_points_per_well=33,
+    z_map_slices_per_point=10,
+    z_map_exposure_ms=25.0, #not used yet
+    z_map_move_ms=200.0, #not used yet
+)
 
 IMAGING_reducedcomm_10X = ImagingParams(
     objective="10x",
@@ -267,6 +297,17 @@ VERSIONS: list[VersionConfig] = [
             imaging=IMAGING_reducedcomm_10X,
         ),
 
+   VersionConfig(
+      date="2026-XX-XX",
+      label="Theoretical reduced wash & z-mapping",
+      notes="Theoretical time gain removed 4 total washes per cycle and reduced z-mapping to 50um after first cycle.",
+      cycles=12,
+      instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
+      fluidics=FLUIDICS_KNF_centerpuck_reducedwash,
+      imaging=IMAGING_reducedcomm_10X,
+      first_cycle_z_map_duration_per_well_s=178.4,
+      subsequent_cycle_z_map_duration_per_well_s=89.2,
+    ),
     # ── 4x versions ──
 
     VersionConfig(
@@ -300,14 +341,26 @@ VERSIONS: list[VersionConfig] = [
     ),
 
     VersionConfig(
-                date="2026-XX-XX",
-                label="Center puck aspirate",
-                notes="Theoretical time gain if center puck design with lower volumes.",
-                cycles=12,
-                instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
-                fluidics=FLUIDICS_KNF_centerpuck,
-                imaging=IMAGING_reducedcomm_4X,
-            ),
+      date="2026-XX-XX",
+      label="Center puck aspirate",
+      notes="Theoretical time gain if center puck design with lower volumes.",
+      cycles=12,
+      instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
+      fluidics=FLUIDICS_KNF_centerpuck,
+      imaging=IMAGING_reducedcomm_4X,
+    ),
+
+    VersionConfig(
+      date="2026-XX-XX",
+      label="Theoretical reduced wash & z-mapping",
+      notes="Theoretical time gain removed 4 total washes per cycle and reduced z-mapping to 50um after first cycle.",
+      cycles=12,
+      instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
+      fluidics=FLUIDICS_KNF_centerpuck_reducedwash,
+      imaging=IMAGING_reducedcomm_4X,
+      first_cycle_z_map_duration_per_well_s=27,
+      subsequent_cycle_z_map_duration_per_well_s=13.5,
+    ),
 
     # ── ADD NEW VERSIONS BELOW ──
     # VersionConfig(
@@ -387,6 +440,18 @@ def imaging_time_min(imaging: ImagingParams, wells: int) -> dict:
     }
 
 
+def z_map_duration_per_well_s_for_cycle(config: VersionConfig, cycle_index: int) -> float:
+    """Select z-map duration per well for this cycle.
+
+    Falls back to imaging.z_map_duration_per_well_s when no cycle-specific override is provided.
+    """
+    if cycle_index == 0 and config.first_cycle_z_map_duration_per_well_s is not None:
+        return config.first_cycle_z_map_duration_per_well_s
+    if cycle_index > 0 and config.subsequent_cycle_z_map_duration_per_well_s is not None:
+        return config.subsequent_cycle_z_map_duration_per_well_s
+    return config.imaging.z_map_duration_per_well_s
+
+
 def compute_cycle_breakdown(config: VersionConfig, cycle_index: int) -> dict:
     is_first_cycle = (cycle_index == 0)
     fluidics_pump = 0.0
@@ -397,13 +462,17 @@ def compute_cycle_breakdown(config: VersionConfig, cycle_index: int) -> dict:
         times = fluidics_step_time_min(step, config.instrument)
         fluidics_pump += times["pump_min"]
         fluidics_wait += times["wait_min"]
+
+    z_map_duration_per_well_s = z_map_duration_per_well_s_for_cycle(config, cycle_index)
+    z_map_min = (z_map_duration_per_well_s * config.instrument.wells) / 60.0
+
     img = imaging_time_min(config.imaging, config.instrument.wells)
     return {
         "fluidics_pump": fluidics_pump,
         "fluidics_wait": fluidics_wait,
-        "z_mapping": img["z_map_min"],
+        "z_mapping": z_map_min,
         "acquisition": img["acq_min"],
-        "total": fluidics_pump + fluidics_wait + img["z_map_min"] + img["acq_min"],
+        "total": fluidics_pump + fluidics_wait + z_map_min + img["acq_min"],
         "z_map_points_per_well": img["z_map_points_per_well"],
         "acq_fovs_per_well": img["acq_fovs_per_well"],
         "time_per_fov_ms": img["time_per_fov_ms"],
