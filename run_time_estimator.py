@@ -189,15 +189,15 @@ IMAGING_reducedcomm_10X = ImagingParams(
     exposure_ms=[25.0, 300.0, 300.0],
     simultaneous_pairs=[["561", "638"]],
     fov_move_ms=145.0,              # likely similar stage speed
-    camera_overhead_ms=430.0,       # same camera hardware
+    camera_overhead_ms=215.0,       # same camera hardware
     set_wheels_ms=0,  #done in parallel with fov move
     set_led_ms=0, # done in parallel with fov move
     end_stack_ms=40.0,
-    z_map_duration_per_well_s=322.5, #354.8 from JSON file /11 * 10, for 10 slices
+    z_map_duration_per_well_s=178.4, #assuming 100 micron range, updated for reduced comm time
     z_map_points_per_well=33,
     z_map_slices_per_point=10,
-    z_map_exposure_ms=25.0,
-    z_map_move_ms=2554.0,
+    z_map_exposure_ms=25.0, #not used yet
+    z_map_move_ms=200.0, #not used yet
 )
 
 IMAGING_reducedcomm_4X = ImagingParams(
@@ -207,15 +207,15 @@ IMAGING_reducedcomm_4X = ImagingParams(
     exposure_ms=[25.0, 300.0, 300.0],
     simultaneous_pairs=[["561", "638"]],
     fov_move_ms=145.0,              # likely similar stage speed
-    camera_overhead_ms=430.0,       # same camera hardware
+    camera_overhead_ms=215.0,       # same camera hardware
     set_wheels_ms=0,  # done in parallel with fov move
     set_led_ms=0,     # done in parallel with fov move
     end_stack_ms=40.0,
-    z_map_duration_per_well_s=56.0, # estimate: 75 * 0.07 ≈ 5 points, scale from 10x
+    z_map_duration_per_well_s=27.0, # estimate: 75 * 0.07 ≈ 5 points, scale from 10x
     z_map_points_per_well=5,        # 7% of 75 FOVs ≈ 5 points
     z_map_slices_per_point=10,
-    z_map_exposure_ms=25.0,
-    z_map_move_ms=2554.0,           # placeholder — update when measured
+    z_map_exposure_ms=25.0, #not used yet
+    z_map_move_ms=200.0, #not used yet
 )
 
 
@@ -250,7 +250,7 @@ VERSIONS: list[VersionConfig] = [
     VersionConfig(
         date="2026-06-22",
         label="Reduced communication time",
-        notes="Reduced time to communicate betwn PC and Heimdall.",
+        notes="Reduced time to communicate betwn PC and Heimdall, and parallelized move/wheel/LED actions",
         cycles=12,
         instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
         fluidics=FLUIDICS_KNF,
@@ -260,7 +260,7 @@ VERSIONS: list[VersionConfig] = [
     VersionConfig(
             date="2026-XX-XX",
             label="Center puck aspirate",
-            notes="Theoretical time gain if center puck design.",
+            notes="Theoretical time gain if center puck design with lower volumes.",
             cycles=12,
             instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
             fluidics=FLUIDICS_KNF_centerpuck,
@@ -292,7 +292,7 @@ VERSIONS: list[VersionConfig] = [
     VersionConfig(
         date="2026-06-22",
         label="Reduced communication time",
-        notes="Reduced time to communicate betwn PC and Heimdall.",
+        notes="Reduced time to communicate betwn PC and Heimdall, and parallelized move/wheel/LED actions",
         cycles=12,
         instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
         fluidics=FLUIDICS_KNF,
@@ -302,7 +302,7 @@ VERSIONS: list[VersionConfig] = [
     VersionConfig(
                 date="2026-XX-XX",
                 label="Center puck aspirate",
-                notes="Theoretical time gain if center puck design.",
+                notes="Theoretical time gain if center puck design with lower volumes.",
                 cycles=12,
                 instrument=InstrumentParams(needle_insert_s=1.6, needle_retract_s=1.6, wells=6),
                 fluidics=FLUIDICS_KNF_centerpuck,
