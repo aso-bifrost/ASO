@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Run Time Tracker — Actual Run History</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         background: #f8f8f6; color: #1a1a1a; padding: 2rem; }
+  h1 { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #666; margin-bottom: 1.5rem; }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 1.5rem; font-size: 12px; color: #555; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0; }
+  .chart-wrap { background: white; border-radius: 12px; border: 0.5px solid #e0e0d8;
+                 padding: 1.5rem; margin-bottom: 1.5rem; }
+  .chart-title { font-size: 14px; font-weight: 500; margin-bottom: 1rem; color: #333; }
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+                  gap: 12px; margin-bottom: 1.5rem; }
+  .stat { background: white; border-radius: 8px; border: 0.5px solid #e0e0d8; padding: 1rem; }
+  .stat-label { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .stat-value { font-size: 22px; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<h1>Run time tracker — actual measured runs</h1>
+<p class="subtitle">Real time breakdown extracted from plan.csv files. Hover a point for details.</p>
+
+<div class="legend">
+  <span class="legend-item"><span class="legend-swatch" style="background:#D4537E"></span>Fluidics — pump</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:#BA7517"></span>Fluidics — wait</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:#1D9E75"></span>Z-mapping</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:#378ADD"></span>Imaging</span>
+</div>
+
+<div class="chart-wrap">
+  <div class="chart-title">Measured time per run (minutes)</div>
+  <div style="position:relative;width:100%;height:360px;">
+    <canvas id="mainChart" role="img" aria-label="Stacked area chart of actual measured run times broken into fluidics pump, fluidics wait, imaging, and z-mapping."></canvas>
+  </div>
+</div>
+
+<div class="stats-grid" id="stats-grid"></div>
+
+<script>
+const LABELS = ["2026-11-04\\n20261104T115616_01M6M249BWYM2V0NNE1E98CKF7_p55-v-2-alpha-3"];
+const FP = [1100.8];
+const FW = [0.0];
+const IM = [811.35];
+const ZM = [0.0];
+const TOTALS_MIN = [832.08];
+const TOTALS_HR = [13.87];
+const META = [{"run_path": "/Volumes/Bifrost/Bifrost/OPS/Automation/Plates/20261104_6W-Plate55 v.2/20261104T115616_01M6M249BWYM2V0NNE1E98CKF7_p55-v-2-alpha-3", "n_wells": 3, "n_cycles": 12, "n_fovs": 475}];
+const COLORS = { fp: '#D4537E', fw: '#BA7517', zm: '#1D9E75', im: '#378ADD' };
+
+const ctx = document.getElementById('mainChart').getContext('2d');
+new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: LABELS,
+    datasets: [
+      { label: 'Fluidics — pump', data: FP, backgroundColor: COLORS.fp+'cc', borderColor: COLORS.fp, borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 },
+      { label: 'Fluidics — wait', data: FW, backgroundColor: COLORS.fw+'cc', borderColor: COLORS.fw, borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 },
+      { label: 'Z-mapping',       data: ZM, backgroundColor: COLORS.zm+'cc', borderColor: COLORS.zm, borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 },
+      { label: 'Imaging',         data: IM, backgroundColor: COLORS.im+'cc', borderColor: COLORS.im, borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 },
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          footer: (items) => {
+            const total = items.reduce((s, i) => s + i.parsed.y, 0);
+            return 'Total: ' + total.toFixed(1) + ' min';
+          }
+        }
+      }
+    },
+    onHover: (evt, elements) => {
+      if (elements.length > 0) updateStats(elements[0].index);
+    },
+    scales: {
+      x: { stacked: true, ticks: { font: { size: 11 }, maxRotation: 30 }, grid: { display: false } },
+      y: { stacked: true, title: { display: true, text: 'minutes' }, ticks: { callback: v => v + ' min' } }
+    }
+  }
+});
+
+function updateStats(i) {
+  const m = META[i];
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat"><div class="stat-label">Run</div><div class="stat-value" style="font-size:13px">${m.run_path.split('/').pop()}</div></div>
+    <div class="stat"><div class="stat-label">Wells</div><div class="stat-value">${m.n_wells}</div></div>
+    <div class="stat"><div class="stat-label">Cycles</div><div class="stat-value">${m.n_cycles}</div></div>
+    <div class="stat"><div class="stat-label">FOVs</div><div class="stat-value">${m.n_fovs}</div></div>
+    <div class="stat"><div class="stat-label">Total time</div><div class="stat-value">${TOTALS_HR[i].toFixed(2)} hr</div></div>
+  `;
+}
+
+updateStats(META.length - 1);
+</script>
+</body>
+</html>
