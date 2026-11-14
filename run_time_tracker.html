@@ -63,11 +63,11 @@ new Chart(ctx, {
   data: {
     labels: LABELS,
     datasets: [
-      { label: 'Fluidics — pump (asp/disp + retract)', data: FP, backgroundColor: COLORS.fp+'33', borderColor: COLORS.fp, borderWidth: 1.5, fill: false, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 },
-      { label: 'Fluidics — wait (wait start → same-well move_to_well end)', data: FW_MEASURED, backgroundColor: COLORS.fwm+'33', borderColor: COLORS.fwm, borderWidth: 1.5, fill: false, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 },
-      { label: 'Fluidics — wait (requested)', data: FW_REQUESTED, backgroundColor: COLORS.fwr+'33', borderColor: COLORS.fwr, borderWidth: 1.5, fill: false, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 },
-      { label: 'Z-mapping',       data: ZM, backgroundColor: COLORS.zm+'33', borderColor: COLORS.zm, borderWidth: 1.5, fill: false, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 },
-      { label: 'Imaging',         data: IM, backgroundColor: COLORS.im+'33', borderColor: COLORS.im, borderWidth: 1.5, fill: false, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 },
+      { label: 'Fluidics — pump (asp/disp + retract)', data: FP, backgroundColor: COLORS.fp+'33', borderColor: COLORS.fp, borderWidth: 1.5, fill: false, showLine: false, pointRadius: 5, pointHoverRadius: 8 },
+      { label: 'Fluidics — wait (wait start → same-well move_to_well end)', data: FW_MEASURED, backgroundColor: COLORS.fwm+'33', borderColor: COLORS.fwm, borderWidth: 1.5, fill: false, showLine: false, pointRadius: 5, pointHoverRadius: 8 },
+      { label: 'Fluidics — wait (requested)', data: FW_REQUESTED, backgroundColor: COLORS.fwr+'33', borderColor: COLORS.fwr, borderWidth: 1.5, fill: false, showLine: false, pointRadius: 5, pointHoverRadius: 8 },
+      { label: 'Z-mapping',       data: ZM, backgroundColor: COLORS.zm+'33', borderColor: COLORS.zm, borderWidth: 1.5, fill: false, showLine: false, pointRadius: 5, pointHoverRadius: 8 },
+      { label: 'Imaging',         data: IM, backgroundColor: COLORS.im+'33', borderColor: COLORS.im, borderWidth: 1.5, fill: false, showLine: false, pointRadius: 5, pointHoverRadius: 8 },
     ]
   },
   options: {
