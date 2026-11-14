@@ -46,15 +46,15 @@
 <div class="stats-grid" id="stats-grid"></div>
 
 <script>
-const LABELS = ["2026-11-04\\n20261104T115616_01M6M249BWYM2V0NNE1E98CKF7_p55-v-2-alpha-3"];
-const FP = [59.23];
-const FW_MEASURED = [547.65];
-const FW_REQUESTED = [525.8];
-const IM = [225.88];
-const ZM = [45.4];
-const TOTALS_MIN = [832.08];
-const TOTALS_HR = [13.87];
-const META = [{"run_path": "/Volumes/Bifrost/Bifrost/OPS/Automation/Plates/20261104_6W-Plate55_v2/20261104T115616_01M6M249BWYM2V0NNE1E98CKF7_p55-v-2-alpha-3", "n_wells": 2, "n_cycles": 12, "n_fovs": 475}];
+const LABELS = ["2026-10-09\\n20261009T170539_01M4HJ2BTNX67W0NZ0Y4VZ817E_alpha-3-p55-cycle-1", "2026-10-09\\n20261009T190124_01M4HRP9EHFT6SGMQF6XKKE5NJ_alpha-3-p55-cycle-2", "2026-10-14\\n20261014T114143_01M4XVGT6D9APRJV3F83H2V7KJ_alpha-3-p55-cycle-3", "2026-10-15\\n20261015T111601_01M50CEF27SS7DR8ZFVDG4X41F_alpha-3-p55-cycle-4", "2026-10-15\\n20261015T173716_01M5128HYAWK0HJV1P9T904M0T_alpha-3-p55-cycle-5", "2026-10-26\\n20261026T111320_01M5WPNETJG5JWBKM2844RZBTB_p63-cycle-6-alpha-3", "2026-10-29\\n20261029T190601_01M658WZ57HEGNAG8M97Q6DRSF_p57-alpha-3", "2026-11-04\\n20261104T115616_01M6M249BWYM2V0NNE1E98CKF7_p55-v-2-alpha-3", "2026-11-05\\n20261105T192634_01M6QE9H6FQ5Y4NZSMRK6VPGB9_p55-v-3-alpha-3"];
+const FP = [0.0, 1.63, 0.0, 0.0, 0.0, 0.0, 60.14, 59.23, 58.39];
+const FW_MEASURED = [0.0, 35.9, 0.0, 0.0, 0.0, 0.0, 535.61, 547.65, 541.05];
+const FW_REQUESTED = [0.0, 36.0, 0.0, 0.0, 0.0, 0.0, 525.8, 525.8, 519.5];
+const IM = [7.5, 7.69, 7.64, 7.5, 7.59, 15.24, 176.86, 225.88, 206.29];
+const ZM = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 35.17, 45.4, 40.3];
+const TOTALS_MIN = [7.5, 45.27, 7.64, 7.5, 7.59, 15.25, 780.15, 832.08, 800.59];
+const TOTALS_HR = [0.13, 0.75, 0.13, 0.13, 0.13, 0.25, 13.0, 13.87, 13.34];
+const META = [{"run_path": "/Volumes/Bifrost/Bifrost/OPS/Automation/Plates/20261008_6W_Plate55/Heimdall_3_data/20261009T170539_01M4HJ2BTNX67W0NZ0Y4VZ817E_alpha-3-p55-cycle-1", "n_wells": 1, "n_cycles": 1, "n_fovs": 475}, {"run_path": "/Volumes/Bifrost/Bifrost/OPS/Automation/Plates/20261008_6W_Plate55/Heimdall_3_data/20261009T190124_01M4HRP9EHFT6SGMQF6XKKE5NJ_alpha-3-p55-cycle-2", "n_wells": 1, "n_cycles": 1, "n_fovs": 475}, {"run_path": "/Volumes/Bifrost/Bifrost/OPS/Automation/Plates/20261008_6W_Plate55/Heimdall_3_data/20261014T114143_01M4XVGT6D9APRJV3F83H2V7KJ_alpha-3-p55-cycle-3", "n_wells": 1, "n_cycles": 1, "n_fovs": 475}, {"run_path": "/Volumes/Bifrost/Bifrost/OPS/Automation/Plates/20261008_6W_Plate55/Heimdall_3_data/20261015T111601_01M50CEF27SS7DR8ZFVDG4X41F_alpha-3-p55-cycle-4", "n_wells": 1, "n_cycles": 1, "n_fovs": 475}, {"run_path": "/Volumes/Bifrost/Bifrost/OPS/Automation/Plates/20261008_6W_Plate55/Heimdall_3_data/20261015T173716_01M5128HYAWK0HJV1P9T904M0T_alpha-3-p55-cycle-5", "n_wells": 1, "n_cycles": 1, "n_fovs": 475}, {"run_path": "/Volumes/Bifrost/Bifrost/OPS/Automation/Plates/20261013_6W_Plate63/Heimdall 3/20261026T111320_01M5WPNETJG5JWBKM2844RZBTB_p63-cycle-6-alpha-3", "n_wells": 2, "n_cycles": 1, "n_fovs": 475}, {"run_path": "/Volumes/Bifrost/Bifrost/OPS/Automation/Plates/20260922_6W-Plate57/20261029T190601_01M658WZ57HEGNAG8M97Q6DRSF_p57-alpha-3", "n_wells": 2, "n_cycles": 12, "n_fovs": 475}, {"run_path": "/Volumes/Bifrost/Bifrost/OPS/Automation/Plates/20261104_6W-Plate55_v2/20261104T115616_01M6M249BWYM2V0NNE1E98CKF7_p55-v-2-alpha-3", "n_wells": 2, "n_cycles": 12, "n_fovs": 475}, {"run_path": "/Volumes/Bifrost/Bifrost/OPS/Automation/Plates/20261105_6W-Plate55_v3/20261105T192634_01M6QE9H6FQ5Y4NZSMRK6VPGB9_p55-v-3-alpha-3", "n_wells": 2, "n_cycles": 11, "n_fovs": 475}];
 const COLORS = { fp: '#D4537E', fwm: '#BA7517', fwr: '#C8A157', zm: '#1D9E75', im: '#378ADD' };
 
 const ctx = document.getElementById('mainChart').getContext('2d');
