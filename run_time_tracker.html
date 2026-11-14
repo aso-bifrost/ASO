@@ -29,8 +29,8 @@
 <p class="subtitle">Real time breakdown extracted from plan.csv files. Hover a point for details.</p>
 
 <div class="legend">
-  <span class="legend-item"><span class="legend-swatch" style="background:#D4537E"></span>Fluidics — pump</span>
-  <span class="legend-item"><span class="legend-swatch" style="background:#BA7517"></span>Fluidics — wait (measured)</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:#D4537E"></span>Fluidics — pump (asp/disp + retract)</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:#BA7517"></span>Fluidics — wait (wait start → same-well move_to_well end)</span>
   <span class="legend-item"><span class="legend-swatch" style="background:#C8A157"></span>Fluidics — wait (requested)</span>
   <span class="legend-item"><span class="legend-swatch" style="background:#1D9E75"></span>Z-mapping</span>
   <span class="legend-item"><span class="legend-swatch" style="background:#378ADD"></span>Imaging</span>
@@ -47,14 +47,14 @@
 
 <script>
 const LABELS = ["2026-11-04\\n20261104T115616_01M6M249BWYM2V0NNE1E98CKF7_p55-v-2-alpha-3"];
-const FP = [1640.86];
-const FW_MEASURED = [0.0];
-const FW_REQUESTED = [1053.8];
+const FP = [59.23];
+const FW_MEASURED = [547.65];
+const FW_REQUESTED = [525.8];
 const IM = [225.88];
 const ZM = [45.4];
 const TOTALS_MIN = [832.08];
 const TOTALS_HR = [13.87];
-const META = [{"run_path": "/Volumes/Bifrost/Bifrost/OPS/Automation/Plates/20261104_6W-Plate55 v.2/20261104T115616_01M6M249BWYM2V0NNE1E98CKF7_p55-v-2-alpha-3", "n_wells": 2, "n_cycles": 12, "n_fovs": 475}];
+const META = [{"run_path": "/Volumes/Bifrost/Bifrost/OPS/Automation/Plates/20261104_6W-Plate55_v2/20261104T115616_01M6M249BWYM2V0NNE1E98CKF7_p55-v-2-alpha-3", "n_wells": 2, "n_cycles": 12, "n_fovs": 475}];
 const COLORS = { fp: '#D4537E', fwm: '#BA7517', fwr: '#C8A157', zm: '#1D9E75', im: '#378ADD' };
 
 const ctx = document.getElementById('mainChart').getContext('2d');
@@ -63,8 +63,8 @@ new Chart(ctx, {
   data: {
     labels: LABELS,
     datasets: [
-      { label: 'Fluidics — pump', data: FP, backgroundColor: COLORS.fp+'cc', borderColor: COLORS.fp, borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 },
-      { label: 'Fluidics — wait (measured)', data: FW_MEASURED, backgroundColor: COLORS.fwm+'cc', borderColor: COLORS.fwm, borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 },
+      { label: 'Fluidics — pump (asp/disp + retract)', data: FP, backgroundColor: COLORS.fp+'cc', borderColor: COLORS.fp, borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 },
+      { label: 'Fluidics — wait (wait start → same-well move_to_well end)', data: FW_MEASURED, backgroundColor: COLORS.fwm+'cc', borderColor: COLORS.fwm, borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 },
       { label: 'Fluidics — wait (requested)', data: FW_REQUESTED, backgroundColor: COLORS.fwr+'cc', borderColor: COLORS.fwr, borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 },
       { label: 'Z-mapping',       data: ZM, backgroundColor: COLORS.zm+'cc', borderColor: COLORS.zm, borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 },
       { label: 'Imaging',         data: IM, backgroundColor: COLORS.im+'cc', borderColor: COLORS.im, borderWidth: 1.5, fill: true, tension: 0.3, pointRadius: 5, pointHoverRadius: 8 },
